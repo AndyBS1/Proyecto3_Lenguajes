@@ -48,6 +48,16 @@ leer_palabra_oculta(Palabra) :-
     format('Palabra registrada: ~s~n', [AsteriscosStr]),
     writeln('Comienza el juego...').
 
+% Leer el número de intentos
+leer_intentos(Intentos) :-
+    write('Cuantos intentos quiere? (presiona ENTER para usar 7): '),
+    read_line_to_string(user_input, Entrada),
+    ( Entrada = "" -> 
+        Intentos = 7 % si presiona ENTER se usa el valor por defecto
+    ; number_string(Num, Entrada), Num > 0 ->
+        Intentos = Num
+    ; writeln('Entrada inválida. Intente de nuevo.'), leer_intentos(Intentos)
+    ).
 
 % Mostrar asteriscos de la misma longitud de la palabra
 mostrar_asteriscos(Palabra) :-
@@ -169,16 +179,26 @@ dibujar(7) :-
 
 % ====== LÓGICA DEL JUEGO ======
 
-jugar(PalabraAtom) :-
+jugar(PalabraAtom, Intentos) :-
     atom_chars(PalabraAtom, Palabra),
-    inicializar_estado(7),
-    ciclo_juego(Palabra, PalabraAtom).
+    inicializar_estado(Intentos),
+    ciclo_juego(Palabra, PalabraAtom, Intentos).
 
-ciclo_juego(Palabra, PalabraAtom) :-
+ciclo_juego(Palabra, PalabraAtom, MaxIntentos) :-
     intentos_restantes(Intentos),
     findall(C, letra_adivinada(C), Adivinadas),
-    Fallos is 7 - Intentos,
-    dibujar(Fallos),
+    (
+        Intentos =< 0 ->
+            dibujar(7)
+    ;
+        FallosTotales is MaxIntentos - Intentos,
+        (
+            FallosTotales >= 7 ->
+                dibujar(6)
+            ;
+                dibujar(FallosTotales)
+        )
+    ),
     writeln('Palabra:'),
     mostrar_palabra(Palabra, Adivinadas),
     format('Intentos restantes: ~d~n', [Intentos]),
@@ -192,18 +212,18 @@ ciclo_juego(Palabra, PalabraAtom) :-
         solicitar_letra(L),
         (
             member(L, Adivinadas) ->
-                writeln('Ya ingresaste esa letra.'), ciclo_juego(Palabra, PalabraAtom)
+                writeln('Ya ingresaste esa letra.'), ciclo_juego(Palabra, PalabraAtom, MaxIntentos)
         ;
             (   member(L, Palabra) ->
                 asserta(letra_adivinada(L)),
-                writeln('CORRECTO'), ciclo_juego(Palabra, PalabraAtom)
+                writeln('CORRECTO'), ciclo_juego(Palabra, PalabraAtom, MaxIntentos)
             ;
                 asserta(letra_adivinada(L)),
                 writeln('INCORRECTO'),
                 intentos_restantes(Prev), New is Prev - 1,
                 retract(intentos_restantes(_)),
                 asserta(intentos_restantes(New)),
-                ciclo_juego(Palabra, PalabraAtom)
+                ciclo_juego(Palabra, PalabraAtom, MaxIntentos)
             )
         )
     ).
@@ -235,10 +255,12 @@ iniciar :-
         seleccionar_palabra_random(P) ,
         atom_length(P, L),
         format('Se ha seleccionado una palabra de longitud ~d~n', [L]),
-        jugar(P)
+        leer_intentos(Intentos),
+        jugar(P, Intentos)
     ;   Opc =:= 2 ->
         leer_palabra_oculta(P2),
-        jugar(P2)
+        leer_intentos(Intentos),
+        jugar(P2, Intentos)
     ;   Opc =:= 3 ->
         writeln('¡Hasta luego!'), halt
     ;   writeln('Opcion invalida, intenta de nuevo.'), iniciar
