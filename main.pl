@@ -111,7 +111,7 @@ inicializar_estado(Max) :-
     retractall(intentos_restantes(_)),
     asserta(intentos_restantes(Max)).
 
-% Dibujos del muñeco en 8 etapas (0..7 fallos)
+% Dibujos del muñeco 
 dibujar(0) :-
     writeln('  +---+'),
     writeln('  |   |'),
@@ -185,48 +185,40 @@ jugar(PalabraAtom, Intentos) :-
     ciclo_juego(Palabra, PalabraAtom, Intentos).
 
 ciclo_juego(Palabra, PalabraAtom, MaxIntentos) :-
-    intentos_restantes(Intentos),
-    findall(C, letra_adivinada(C), Adivinadas),
-    (
-        Intentos =< 0 ->
-            dibujar(7)
-    ;
-        FallosTotales is MaxIntentos - Intentos,
-        (
-            FallosTotales >= 7 ->
-                dibujar(6)
-            ;
-                dibujar(FallosTotales)
-        )
+    intentos_restantes(Intentos),                        % Consultar intentos actuales
+    findall(C, letra_adivinada(C), Adivinadas),          % Obtener letras adivinadas
+
+    ( Intentos =< 0 -> dibujar(7)                         % Si no hay intentos, dibujar colgado
+    ; FallosTotales is MaxIntentos - Intentos,           % Calcular fallos realizados
+        (FallosTotales >= 7 -> dibujar(6) ; dibujar(FallosTotales))  % Dibujar etapa del muñeco
     ),
-    writeln('Palabra:'),
-    mostrar_palabra(Palabra, Adivinadas),
+
+    writeln('Palabra:'), mostrar_palabra(Palabra, Adivinadas),   % Mostrar palabra con letras o _
     format('Intentos restantes: ~d~n', [Intentos]),
-    (
-        palabra_completa(Palabra, Adivinadas) ->
-            writeln('Felicidades - Adivinaste la palabra.'), preguntar_reiniciar
-    ;
-        Intentos =< 0 ->
-            write('Has perdido - La palabra era: '), writeln(PalabraAtom), preguntar_reiniciar
-    ;
-        solicitar_letra(L),
-        (
-            member(L, Adivinadas) ->
-                writeln('Ya ingresaste esa letra.'), ciclo_juego(Palabra, PalabraAtom, MaxIntentos)
+
+    ( palabra_completa(Palabra, Adivinadas) ->           % Se adivinó toda la palabra?
+        writeln('Felicidades...'), preguntar_reiniciar
+    ; Intentos =< 0 ->                                    % Se acabaron los intentos?
+        write('Has perdido :( - La palabra correcta era: '), writeln(PalabraAtom), preguntar_reiniciar
+    ; 
+        solicitar_letra(L),                              % Leer nueva letra
+        ( member(L, Adivinadas) ->                        % Ya se adivinó antes?
+            writeln('Ya ingresaste esa letra.'), ciclo_juego(Palabra, PalabraAtom, MaxIntentos)
         ;
-            (   member(L, Palabra) ->
-                asserta(letra_adivinada(L)),
+            ( member(L, Palabra) ->                       % Letra correcta?
+                asserta(letra_adivinada(L)),             % Guardar letra correcta
                 writeln('CORRECTO'), ciclo_juego(Palabra, PalabraAtom, MaxIntentos)
             ;
-                asserta(letra_adivinada(L)),
+                asserta(letra_adivinada(L)),             % Guardar letra incorrecta
                 writeln('INCORRECTO'),
                 intentos_restantes(Prev), New is Prev - 1,
                 retract(intentos_restantes(_)),
-                asserta(intentos_restantes(New)),
+                asserta(intentos_restantes(New)),        % Actualizar intentos
                 ciclo_juego(Palabra, PalabraAtom, MaxIntentos)
             )
         )
     ).
+
 
 % Preguntar si se desea reiniciar o salir
 preguntar_reiniciar :-
@@ -262,6 +254,6 @@ iniciar :-
         leer_intentos(Intentos),
         jugar(P2, Intentos)
     ;   Opc =:= 3 ->
-        writeln('¡Hasta luego!'), halt
+        writeln('Hasta luego'), halt
     ;   writeln('Opcion invalida, intenta de nuevo.'), iniciar
     ).
